@@ -1,10 +1,12 @@
+# Configure Terraform backend for state management
+# S3 for state storage and DynamoDB for state locking
 terraform {
   backend "s3" {
-    bucket         = "terraform-state-lock-pflegia"
+    bucket         = "pflegia-terraform-state-prod-20250222"  # Update this with the output from bootstrap
     key            = "terraform/state/pflegia-infra.tfstate"
     region         = "us-east-1"
     encrypt        = true
-    dynamodb_table = "terraform-state-lock"
+    dynamodb_table = "pflegia-tfstate-lock-prod"  # Update this with the output from bootstrap
   }
 }
 
@@ -12,6 +14,8 @@ provider "aws" {
   region = var.aws_region
 }
 
+# VPC Module: Creates the networking infrastructure
+# Including VPC, public subnets, internet gateway, and route tables
 module "vpc" {
   source = "./modules/vpc"
   vpc_cidr           = var.vpc_cidr
@@ -20,6 +24,7 @@ module "vpc" {
   environment        = var.environment
 }
 
+# ECR Module: Sets up container registry for Docker images
 module "ecr" {
   source = "./modules/ecr"
   repository_name = var.ecr_repository_name
@@ -27,6 +32,18 @@ module "ecr" {
   environment    = var.environment
 }
 
+# ALB Module: Manages Application Load Balancer for blue-green deployment
+module "alb" {
+  source = "./modules/alb"
+  project_name      = var.project_name
+  environment       = var.environment
+  vpc_id           = module.vpc.vpc_id
+  public_subnet_ids = module.vpc.public_subnet_ids
+  container_port    = var.container_port
+}
+
+# ECS Module: Manages container orchestration
+# Sets up ECS cluster, service, task definitions, and load balancer
 module "ecs" {
   source = "./modules/ecs"
   project_name    = var.project_name
@@ -37,16 +54,30 @@ module "ecs" {
   container_port  = var.container_port
 }
 
-module "cicd" {
-  source = "./modules/cicd"
-  project_name           = var.project_name
-  environment            = var.environment
-  repository_name        = var.github_repository_name
-  branch_name           = var.github_branch_name
-  ecr_repository_url    = module.ecr.repository_url
-  ecs_cluster_name      = module.ecs.cluster_name
-  ecs_service_name      = module.ecs.service_name
-  alb_listener_arn      = module.ecs.alb_listener_arn
-  blue_target_group_name = module.ecs.blue_target_group_name
-  green_target_group_name = module.ecs.green_target_group_name
+# Secrets Manager Module: Manages application and GitHub secrets
+module "secrets" {
+  source            = "./modules/secrets"
+  project_name      = var.project_name
+  environment       = var.environment
+  github_token      = var.github_token
+  ecr_repository_url = module.ecr.repository_url
+  aws_region        = var.aws_region
+  app_secret        = var.app_secret
+  database_url      = var.database_url
+}
+
+# Lambda Module: Creates Lambda function to list S3 buckets
+module "lambda" {
+  source = "./modules/lambda"
+  project_name = var.project_name
+  environment  = var.environment
+}
+
+# API Gateway Module: Creates HTTP API Gateway
+module "api_gateway" {
+  source = "./modules/api_gateway"
+  project_name = var.project_name
+  environment  = var.environment
+  lambda_function_arn = module.lambda.lambda_function_arn
+  lambda_function_name = module.lambda.lambda_function_name
 }

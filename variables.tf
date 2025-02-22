@@ -1,5 +1,5 @@
 variable "aws_region" {
-  description = "AWS region"
+  description = "AWS region where resources will be created (default: us-east-1)"
   type        = string
   default     = "us-east-1"
 }
@@ -17,15 +17,15 @@ variable "environment" {
 }
 
 variable "vpc_cidr" {
-  description = "CIDR block for VPC"
+  description = "CIDR block for VPC - defines the IP address range for entire network"
   type        = string
-  default     = "10.34.0.0/16"
+  default     = "10.100.0.0/16"
 }
 
 variable "public_subnet_cidrs" {
   description = "CIDR blocks for public subnets"
   type        = list(string)
-  default     = ["10.34.34.0/24", "10.34.35.0/24"]
+  default     = ["10.100.1.0/24", "10.100.2.0/24"]
 }
 
 variable "ecr_repository_name" {
@@ -40,14 +40,25 @@ variable "container_port" {
   default     = 5000
 }
 
-variable "github_repository_name" {
-  description = "GitHub repository name"
+
+
+variable "app_secret" {
+  description = "Application secret key"
   type        = string
-  default     = "devopscodelab/pflegia"
+  sensitive   = true
+  default     = ""
 }
 
-variable "github_branch_name" {
-  description = "GitHub branch to monitor"
+variable "database_url" {
+  description = "Database connection URL"
   type        = string
-  default     = "main"
+  sensitive   = true
+  default     = ""
+}
+
+variable "github_token" {
+  description = "GitHub token for repository access"
+  type        = string
+  sensitive   = true
+  default     = ""
 }

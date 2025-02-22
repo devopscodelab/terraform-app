@@ -51,7 +51,7 @@ resource "aws_ecs_service" "main" {
   }
 
   deployment_controller {
-    type = "CODE_DEPLOY"
+    type = "ECS"
   }
 
   tags = {
